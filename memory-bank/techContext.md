@@ -4,7 +4,7 @@
 
 This file defines the technical direction for the Restaurant Franchise Executive Dashboard prototype.
 
-Use this file as the technical source of truth for:
+It should be used by developers and AI coding assistants as the source of truth for:
 
 - Technology stack
 - Project structure
@@ -13,12 +13,18 @@ Use this file as the technical source of truth for:
 - Component patterns
 - Charting approach
 - Mock data strategy
-- Insight generation logic
+- Insight-generation logic
 - Development sequence
+
+The goal is to keep the prototype consistent as it evolves through VS Code, Copilot, and iterative prompts.
+
+---
 
 ## Product Type
 
-This is a front-end prototype for an executive dashboard used by a hypothetical ownership group operating Taco Bell and Pizza Hut stores in:
+This project is a front-end prototype for a modern executive dashboard.
+
+The prototype should demonstrate the experience of a dashboard used by a hypothetical franchise ownership group operating Taco Bell and Pizza Hut restaurants across:
 
 - Minnesota
 - Wisconsin
@@ -26,62 +32,106 @@ This is a front-end prototype for an executive dashboard used by a hypothetical 
 - South Dakota
 - North Dakota
 
-The dashboard should help users understand cost management, sales movement, risk, opportunity, operational trends, channel mix, and event or weather demand effects.
+The dashboard should help users quickly understand:
+
+- Cost management
+- Sales performance
+- Stores at risk
+- Regional opportunities
+- Operational trends
+- Sales channel mix
+- Event/weather-driven demand
+- Forecasted business movement
+
+---
 
 ## Technical Philosophy
 
-This is a decision support dashboard, not a static reporting dashboard.
+This is not a basic reporting dashboard.
 
-Each major component should help answer at least one of these questions:
+This is a decision-making dashboard.
+
+The technical implementation should support the product principle:
+
+> The dashboard should help users understand what changed, why it changed, and what action they should consider next.
+
+Every major component should support one or more of these questions:
 
 1. What changed?
 2. Why did it change?
 3. Where should I focus?
 4. What should I do next?
 
+If a component only displays data but does not help the user interpret or act on it, reconsider whether it belongs in the experience.
+
+---
+
 ## Recommended Technology Stack
 
-- Next.js (App Router)
+Use the following stack for the prototype:
+
+- Next.js
 - React
 - TypeScript
 - Tailwind CSS
 - shadcn/ui
 - Recharts
 - lucide-react
-- Local TypeScript mock data
-- Deterministic insight logic
+- Local mock data
+- Deterministic insight-generation logic
 
 Optional later additions:
 
-- Zustand
-- D3
-- Mapbox or Leaflet
-- Framer Motion
+- Zustand for more advanced state management
+- D3 for advanced custom visualizations
+- Mapbox or Leaflet for production-grade mapping
+- Framer Motion for polished microinteractions
+
+---
 
 ## Application Framework
 
-Use Next.js App Router for page-level organization and future API route extensibility.
+Use Next.js with the App Router.
+
+Recommended reasons:
+
+- Strong React support
+- File-based routing
+- Clean page organization
+- Works well with TypeScript
+- Works well with Tailwind CSS
+- Supports future API routes if needed
+- Good fit for dashboard prototypes
+
+---
 
 ## Language
 
-Use TypeScript throughout.
+Use TypeScript throughout the application.
 
-Type all:
+Do not use plain JavaScript unless there is a strong reason.
+
+TypeScript should be used for:
 
 - Store data
-- KPI objects
+- KPI definitions
 - Insight objects
 - Filter state
-- Chart series
+- Chart data
 - Regional data
 - Risk scoring
 - Component props
-- Utility inputs and outputs
+- Utility functions
+
+Strong typing is important because this dashboard has many related data objects and comparison views.
+
+---
 
 ## Styling Approach
 
-- Tailwind CSS for layout and styling
-- shadcn/ui for reusable primitives
+Use Tailwind CSS for styling.
+
+Use shadcn/ui for reusable interface components.
 
 Recommended shadcn/ui components:
 
@@ -99,294 +149,160 @@ Recommended shadcn/ui components:
 - Progress
 - Scroll Area
 
+The visual style should feel polished, modern, colorful, and executive-ready.
+
+---
+
 ## Charting Approach
 
-Use Recharts for most charts:
+Use Recharts for most charts in the initial prototype.
 
-- Line
-- Bar
-- Area
-- Donut
-- Stacked bar
-- Sparkline trend
+Recharts is appropriate for:
 
-Use D3 only for advanced custom visuals that are difficult in Recharts.
+- Line charts
+- Bar charts
+- Area charts
+- Donut charts
+- Stacked bar charts
+- Sparkline-style KPI trends
+- Simple comparative visualizations
+
+Use D3 only if a visualization requires custom behavior that Recharts cannot handle easily.
+
+Potential D3 use cases:
+
+- Advanced heat maps
+- Custom clustering
+- Custom geographic overlays
+- Highly customized interaction patterns
+
+---
 
 ## Mapping Approach
 
-For v1, avoid production-grade GIS complexity. Start with one of:
+For the first prototype, avoid over-engineering the map.
 
-1. Clickable state cards
-2. Simplified Midwest panel
-3. State heat map
-4. Store cluster cards
+Start with one of these simpler approaches:
+
+1. Clickable state cards styled as a regional map
+2. Simplified Midwest region visualization
+3. State-level heat map panel
+4. Store cluster cards by state
 5. Mock interactive map component
 
-Map should support state performance, risk concentration, sales intensity, brand filtering, and drilldown behavior.
+The initial goal is to demonstrate location intelligence, not to build a production GIS product.
+
+The map experience should support:
 
-## Recommended Routes
-
-### /
-
-Executive dashboard homepage with:
-
-- AI-style morning brief
-- Executive KPI snapshot
-- Cost and sales summary
-- Store risk summary
-- Regional opportunity highlights
-- Brand comparison
-- Channel mix
-- Regional map panel
-- Alerts and recommended actions
-
-### /regional
-
-Regional Manager deep dive with:
-
-- Regional health score
-- Stores at risk
-- Cost variance by store
-- Labor and food cost exceptions
-- Drive-thru speed issues
-- Complaint and app rating trends
-- Recommended visits and coaching priorities
-- Demand drivers
-
-### /stores/[storeId]
-
-Store detail view with:
-
-- Store profile and location
-- Sales and order performance
-- Operational health
-- Customer metrics
-- Finance metrics
-- Risk score and drivers
-- Insight summary
-- Recommended action
-
-### /insights
-
-Insights center with filters by priority, state, and brand plus expandable explainability and related metrics.
-
-## Core Data Sources
-
-Assume hypothetical data from:
-
-- POS systems
-- Brand corporate feeds
-- Delivery platforms
-- Labor systems
-- Weather services
-- Event calendars
-- Financial systems
-
-For the prototype, all data remains local and mocked.
-
-## Mock Data Strategy
-
-Store mock data in local TypeScript modules:
-
-- src/data/mockStorePortfolio.ts
-- src/data/mockStores.ts
-- src/data/mockSales.ts
-- src/data/mockOrders.ts
-- src/data/mockOperations.ts
-- src/data/mockCustomerExperience.ts
-- src/data/mockFinance.ts
-- src/data/mockEvents.ts
-- src/data/mockWeather.ts
-- src/data/mockInsights.ts
-- src/data/mockChannelMix.ts
-
-Mock data should enable state, brand, store, YoY, channel, risk, and forecast comparisons.
-
-## Store Portfolio
-
-Use:
-
-- Minnesota: Taco Bell 100, Pizza Hut 90, Total 190
-- Wisconsin: Taco Bell 85, Pizza Hut 70, Total 155
-- Iowa: Taco Bell 87, Pizza Hut 69, Total 156
-- South Dakota: Taco Bell 60, Pizza Hut 50, Total 110
-- North Dakota: Taco Bell 55, Pizza Hut 58, Total 113
-
-Totals:
-
-- Taco Bell 387
-- Pizza Hut 337
-- Portfolio 724
-
-## Core TypeScript Types
-
-Recommended files under src/types:
-
-- brand.ts
-- channel.ts
-- filters.ts
-- insights.ts
-- kpi.ts
-- region.ts
-- store.ts
-- time.ts
-
-Key unions and models:
-
-- Brand: Taco Bell or Pizza Hut
-- StateName: Minnesota | Wisconsin | Iowa | South Dakota | North Dakota
-- SalesChannel: appDelivery | driverDelivery | inStore | driveThru
-- RiskLevel: low | medium | high | critical
-- InsightType: performance | risk | opportunity | forecast
-
-## Calculation Layer
-
-Keep business logic outside UI components.
-
-Recommended folder:
-
-- src/lib/calculations
-
-Recommended files:
-
-- calculateKpis.ts
-- calculateStoreRisk.ts
-- calculateChannelMix.ts
-- calculateStatePerformance.ts
-- calculateBrandPerformance.ts
-- calculateYearOverYearChange.ts
-- calculateRegionalHealth.ts
-- calculatePeakTimes.ts
-
-## Store Risk Calculation
-
-Combine weak signals to generate risk score:
-
-- Negative same store sales growth
-- Labor percent above target
-- Food cost percent above target
-- Complaint spikes
-- App rating decline
-- Drive-thru speed issues
-- Order accuracy decline
-- EBITDA below target
-
-Suggested bands:
-
-- 0-24 low
-- 25-49 medium
-- 50-74 high
-- 75-100 critical
-
-## Insight Engine
-
-Use deterministic logic for prototype insights (no live LLM dependency).
-
-Recommended folder:
-
-- src/lib/insights
-
-Recommended files:
-
-- generateInsights.ts
-- generatePerformanceInsights.ts
-- generateRiskInsights.ts
-- generateOpportunityInsights.ts
-- generateForecastInsights.ts
-- rankInsights.ts
-
-Ranking factors should include priority, impact, urgency, confidence, recency, and severity.
-
-## Component Architecture
-
-Recommended component groups:
-
-- src/components/charts
-- src/components/dashboard
-- src/components/filters
-- src/components/insights
-- src/components/kpi
-- src/components/layout
-- src/components/maps
-- src/components/regional
-- src/components/stores
-- src/components/ui
-
-## Filter Pattern
-
-Use top-level filter state on each dashboard page.
-
-Core filters:
-
-- State
-- Brand
-- Region
-- Store
-- Time period
-- Sales channel
-- Risk level
-
-Start with React state. Introduce Zustand only if complexity requires shared, cross-page coordination.
-
-## Formatting Utilities
-
-Add reusable formatters in src/lib/formatters/formatValues.ts:
-
-- formatCurrency
-- formatPercent
-- formatNumber
-- formatDurationSeconds
-
-## Design Tokens
-
-Add src/lib/designTokens.ts for status colors, brand colors, and chart palette constants.
-
-## Accessibility Guidelines
-
-- Do not rely on color alone
-- Maintain contrast
-- Use semantic labels and clear button text
-- Keep controls keyboard-friendly where practical
-- Include chart titles and descriptions
-
-## Responsiveness
-
-Desktop-first with adaptive tablet and mobile priorities.
-
-## Initial Dependency Suggestions
-
-- npm install next react react-dom typescript
-- npm install tailwindcss
-- npm install recharts
-- npm install lucide-react
-- npm install clsx tailwind-merge class-variance-authority
-
-If using shadcn/ui:
-
-- npx shadcn@latest init
-- npx shadcn@latest add card button badge tabs select table tooltip sheet dialog separator progress scroll-area dropdown-menu
-
-## Recommended Build Sequence
-
-1. Foundation and folder structure
-2. Types and design tokens
-3. Mock data
-4. Executive shell and filters
-5. Charts and comparisons
-6. Insight engine and ranking
-7. Risk and opportunity logic
-8. Regional and store pages
-9. Polish and responsiveness
-
-## Development Rules
-
-1. Keep components focused
-2. Keep business logic out of React views
-3. Use TypeScript consistently
-4. Build against mock data first
-5. Let insights drive user flow
-6. Favor executive scanning and actionability
-
-## Current Recommendation
-
-Start with a polished, believable front-end prototype. Add live integrations, auth, and production forecasting only after the core experience proves useful.
+- State-level performance
+- Store clustering
+- Risk concentration
+- Sales heat intensity
+- Brand filtering
+- Store-level drilldown
+- Regional comparison
+
+Future version options:
+
+- Mapbox
+- Leaflet
+- Google Maps API
+- Azure Maps
+
+---
+
+## Recommended Project Structure
+
+Use this structure:
+Recommended Routes
+/
+
+Executive dashboard homepage.
+
+This is the primary landing experience for all users.
+
+It should include:
+
+AI-style morning brief
+Executive KPI snapshot
+Cost management summary
+Sales performance overview
+Store risk summary
+Regional opportunity highlights
+Brand comparison
+Channel mix
+Interactive regional map
+Alerts and recommended actions
+
+/regional
+
+Regional Manager deep-dive view.
+
+This page demonstrates how the shared executive dashboard can branch into a more operational role-based experience.
+
+It should include:
+
+Regional health score
+Stores at risk
+Cost variance by store
+Labor % exceptions
+Food cost % exceptions
+Drive-thru speed issues
+Complaint and app rating trends
+Recommended store visits
+Suggested coaching priorities
+Upcoming demand drivers
+
+/stores/[storeId]
+
+Store-level detail view.
+
+It should include:
+
+Store profile
+Brand
+State
+Region
+City
+Sales performance
+Order performance
+Operational health
+Customer experience metrics
+Finance metrics
+Risk score
+Insight summary
+Recommended action
+
+/insights
+
+Central insights page.
+
+It should include:
+
+Performance insights
+Risk insights
+Opportunity insights
+Forecast insights
+Filters by priority
+Filters by state
+Filters by brand
+Expandable explanations
+Related metrics
+Recommended next steps
+
+Core Data Sources
+
+The prototype should assume hypothetical data from:
+
+POS systems
+Taco Bell corporate feeds
+Pizza Hut corporate feeds
+DoorDash
+Uber Eats
+Grubhub
+Labor scheduling systems
+Weather services
+Sports and event calendars
+Financial systems
+
+For this prototype, all data should be mocked locally.
