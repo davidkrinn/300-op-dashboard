@@ -1,0 +1,40 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  @apply bg-gradient-to-br from-amber-50 via-white to-cyan-50 text-slate-900;
+}
+
+.font-body {
+  font-family: "Avenir Next", "Avenir", "Segoe UI", "Trebuchet MS", sans-serif;
+}
+
+h1,
+h2,
+h3,
+.font-display {
+  font-family: "Optima", "Avenir Next", "Segoe UI", sans-serif;
+}
+
+main {
+  @apply min-h-screen;
+}
+
+h1,
+h2,
+h3 {
+  letter-spacing: -0.02em;
+}
+
+.panel {
+  @apply rounded-xl border border-slate-200 bg-white/90 p-5 shadow-panel;
+}
+
+.badge {
+  @apply inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold;
+}
