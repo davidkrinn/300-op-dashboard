@@ -4,9 +4,15 @@ import type { StateName } from "@/types/region"
 
 export type Store = {
   id: string
+  name: string
   brand: Brand
   state: StateName
+  region: string
   city: string
+  latitude: number
+  longitude: number
+  currentWeekSales: number
+  previousWeekSales: number
   volumeTier: "Low" | "Medium" | "High"
   openedYear: number
   squareFeet: number

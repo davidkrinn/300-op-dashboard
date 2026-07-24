@@ -7,7 +7,7 @@ import { ChannelMixChart } from "@/components/charts/ChannelMixChart"
 import { SalesTrendChart } from "@/components/charts/SalesTrendChart"
 import { InsightList } from "@/components/insights/InsightList"
 import { KpiGrid } from "@/components/kpi/KpiGrid"
-import { RegionalStateGrid } from "@/components/maps/RegionalStateGrid"
+import { StateRestaurantMap } from "@/components/maps/StateRestaurantMap"
 import { monthlySales } from "@/data/mockSales"
 import { stores } from "@/data/mockStores"
 import { calculateBrandPerformance } from "@/lib/calculations/calculateBrandPerformance"
@@ -132,7 +132,7 @@ export function ExecutiveDashboard() {
         </div>
       </section>
 
-      <RegionalStateGrid states={calculations.statePerformance} selectedState={stateFilter} onSelect={setStateFilter} />
+      <StateRestaurantMap selectedState={stateFilter} selectedBrand={brandFilter} />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
         <SalesTrendChart data={monthlySales} />
