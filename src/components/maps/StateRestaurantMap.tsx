@@ -5,8 +5,137 @@ import { TrendingDown, TrendingUp } from "lucide-react"
 import { stores } from "@/data/mockStores"
 import type { Brand } from "@/types/brand"
 
+type GeoPoint = {
+  lat: number
+  lng: number
+}
+
+type ScreenPoint = {
+  x: number
+  y: number
+}
+
+type StatePolygon = {
+  name: string
+  points: GeoPoint[]
+}
+
+const MAP_WIDTH = 940
+const MAP_HEIGHT = 420
+
+const GEO_BOUNDS = {
+  minLat: 40.3,
+  maxLat: 49.1,
+  minLng: -104.2,
+  maxLng: -86.4,
+}
+
+const STATE_POLYGONS: StatePolygon[] = [
+  {
+    name: "North Dakota",
+    points: [
+      { lat: 49.0, lng: -104.05 },
+      { lat: 49.0, lng: -97.23 },
+      { lat: 46.0, lng: -96.6 },
+      { lat: 46.0, lng: -104.05 },
+    ],
+  },
+  {
+    name: "South Dakota",
+    points: [
+      { lat: 45.95, lng: -104.05 },
+      { lat: 45.95, lng: -96.45 },
+      { lat: 42.48, lng: -96.45 },
+      { lat: 42.48, lng: -104.05 },
+    ],
+  },
+  {
+    name: "Minnesota",
+    points: [
+      { lat: 49.0, lng: -97.2 },
+      { lat: 49.0, lng: -95.0 },
+      { lat: 48.8, lng: -92.8 },
+      { lat: 47.3, lng: -89.5 },
+      { lat: 46.2, lng: -92.2 },
+      { lat: 45.7, lng: -92.9 },
+      { lat: 43.5, lng: -91.2 },
+      { lat: 43.5, lng: -95.2 },
+      { lat: 45.0, lng: -95.2 },
+      { lat: 46.3, lng: -95.2 },
+      { lat: 48.0, lng: -96.6 },
+    ],
+  },
+  {
+    name: "Iowa",
+    points: [
+      { lat: 43.5, lng: -96.64 },
+      { lat: 43.5, lng: -90.14 },
+      { lat: 40.38, lng: -90.14 },
+      { lat: 40.38, lng: -95.8 },
+      { lat: 41.6, lng: -96.5 },
+    ],
+  },
+  {
+    name: "Wisconsin",
+    points: [
+      { lat: 47.3, lng: -92.9 },
+      { lat: 47.1, lng: -90.7 },
+      { lat: 46.6, lng: -90.0 },
+      { lat: 45.8, lng: -87.0 },
+      { lat: 44.5, lng: -86.8 },
+      { lat: 42.5, lng: -87.0 },
+      { lat: 42.5, lng: -90.7 },
+      { lat: 43.5, lng: -91.2 },
+      { lat: 45.7, lng: -92.9 },
+    ],
+  },
+]
+
 function markerColor(currentWeekSales: number, previousWeekSales: number): string {
   return currentWeekSales >= previousWeekSales ? "#16a34a" : "#dc2626"
+}
+
+function projectPoint(point: GeoPoint): ScreenPoint {
+  const x = ((point.lng - GEO_BOUNDS.minLng) / (GEO_BOUNDS.maxLng - GEO_BOUNDS.minLng)) * MAP_WIDTH
+  const y = ((GEO_BOUNDS.maxLat - point.lat) / (GEO_BOUNDS.maxLat - GEO_BOUNDS.minLat)) * MAP_HEIGHT
+  return { x, y }
+}
+
+function polygonPath(points: ScreenPoint[]): string {
+  if (points.length === 0) return ""
+  return `M ${points.map((point) => `${point.x.toFixed(1)} ${point.y.toFixed(1)}`).join(" L ")} Z`
+}
+
+function isPointInPolygon(point: ScreenPoint, polygon: ScreenPoint[]): boolean {
+  let inside = false
+
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const xi = polygon[i].x
+    const yi = polygon[i].y
+    const xj = polygon[j].x
+    const yj = polygon[j].y
+
+    const intersect = yi > point.y !== yj > point.y && point.x < ((xj - xi) * (point.y - yi)) / (yj - yi + 0.0000001) + xi
+    if (intersect) inside = !inside
+  }
+
+  return inside
+}
+
+function polygonCentroid(polygon: ScreenPoint[]): ScreenPoint {
+  const total = polygon.reduce(
+    (acc, point) => {
+      acc.x += point.x
+      acc.y += point.y
+      return acc
+    },
+    { x: 0, y: 0 },
+  )
+
+  return {
+    x: total.x / polygon.length,
+    y: total.y / polygon.length,
+  }
 }
 
 type Props = {
@@ -26,20 +155,43 @@ export function StateRestaurantMap({ selectedState, selectedBrand }: Props) {
   }, [selectedState, selectedBrand])
 
   const activeStore = filteredStores.find((store) => store.id === activeStoreId)
-  const mapPoints = useMemo(() => {
-    const minLat = 41
-    const maxLat = 49
-    const minLng = -101.5
-    const maxLng = -88
-    const width = 940
-    const height = 420
-
-    return filteredStores.map((store) => {
-      const x = ((store.longitude - minLng) / (maxLng - minLng)) * width
-      const y = ((maxLat - store.latitude) / (maxLat - minLat)) * height
-      return { store, x, y }
+  const polygons = useMemo(() => {
+    return STATE_POLYGONS.map((statePolygon) => {
+      const projected = statePolygon.points.map(projectPoint)
+      return {
+        name: statePolygon.name,
+        points: projected,
+        path: polygonPath(projected),
+        centroid: polygonCentroid(projected),
+      }
     })
-  }, [filteredStores])
+  }, [])
+
+  const polygonByName = useMemo(() => {
+    return new Map(polygons.map((polygon) => [polygon.name, polygon]))
+  }, [polygons])
+
+  const mapPoints = useMemo(() => {
+    return filteredStores.map((store) => {
+      const projected = projectPoint({ lat: store.latitude, lng: store.longitude })
+      const statePolygon = polygonByName.get(store.state)
+
+      if (!statePolygon) {
+        return { store, x: projected.x, y: projected.y }
+      }
+
+      const inside = isPointInPolygon(projected, statePolygon.points)
+      if (inside) {
+        return { store, x: projected.x, y: projected.y }
+      }
+
+      return {
+        store,
+        x: statePolygon.centroid.x,
+        y: statePolygon.centroid.y,
+      }
+    })
+  }, [filteredStores, polygonByName])
 
   return (
     <section className="panel">
@@ -62,21 +214,32 @@ export function StateRestaurantMap({ selectedState, selectedBrand }: Props) {
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.3fr_1fr]">
         <div className="relative overflow-hidden rounded-lg border border-slate-200 bg-gradient-to-br from-slate-100 via-indigo-50 to-violet-100">
-          <svg viewBox="0 0 940 420" className="h-[420px] w-full">
-            <rect x="25" y="30" width="180" height="170" rx="14" fill="#ede9fe" stroke="#a78bfa" />
-            <text x="45" y="58" fontSize="14" fill="#5b21b6" fontWeight="700">North Dakota</text>
-
-            <rect x="220" y="30" width="200" height="170" rx="14" fill="#ede9fe" stroke="#a78bfa" />
-            <text x="245" y="58" fontSize="14" fill="#5b21b6" fontWeight="700">Minnesota</text>
-
-            <rect x="430" y="42" width="180" height="190" rx="14" fill="#ede9fe" stroke="#a78bfa" />
-            <text x="452" y="70" fontSize="14" fill="#5b21b6" fontWeight="700">Wisconsin</text>
-
-            <rect x="35" y="215" width="190" height="165" rx="14" fill="#ede9fe" stroke="#a78bfa" />
-            <text x="58" y="242" fontSize="14" fill="#5b21b6" fontWeight="700">South Dakota</text>
-
-            <rect x="245" y="225" width="220" height="155" rx="14" fill="#ede9fe" stroke="#a78bfa" />
-            <text x="275" y="252" fontSize="14" fill="#5b21b6" fontWeight="700">Iowa</text>
+          <svg viewBox={`0 0 ${MAP_WIDTH} ${MAP_HEIGHT}`} className="h-[420px] w-full">
+            {polygons.map((polygon) => {
+              const isFocused = selectedState === "All" || selectedState === polygon.name
+              return (
+                <g key={polygon.name}>
+                  <path
+                    d={polygon.path}
+                    fill={isFocused ? "#ddd6fe" : "#ede9fe"}
+                    stroke={isFocused ? "#7c3aed" : "#a78bfa"}
+                    strokeWidth={isFocused ? 2.4 : 1.7}
+                    opacity={isFocused ? 1 : 0.6}
+                  />
+                  <text
+                    x={polygon.centroid.x}
+                    y={polygon.centroid.y}
+                    fontSize="13"
+                    fill="#5b21b6"
+                    fontWeight="700"
+                    textAnchor="middle"
+                    opacity={isFocused ? 1 : 0.7}
+                  >
+                    {polygon.name}
+                  </text>
+                </g>
+              )
+            })}
 
             {mapPoints.map(({ store, x, y }) => {
               const selected = activeStoreId === store.id
