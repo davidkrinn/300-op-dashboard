@@ -50,41 +50,29 @@ export function ExecutiveDashboard() {
 
   const topRisk = calculations.risk[0]
   const topInsight = calculations.insights[0]
+  const topOpportunity = calculations.insights.find((insight) => insight.type === "opportunity")
+  const topRiskInsight = calculations.insights.find((insight) => insight.type === "risk")
+  const recommendedAction = topRiskInsight?.recommendedAction ?? "Reinforce peak-hour labor and monitor order accuracy across high-volume locations."
 
   return (
     <div className="space-y-6">
-      <section className="panel bg-gradient-to-r from-cyan-700 to-orange-600 text-white">
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-cyan-100">Morning Brief</p>
-            <h2 className="mt-2 text-3xl font-bold">Sales are up across core markets with watchpoints in service execution.</h2>
-            <p className="mt-2 max-w-3xl text-sm text-cyan-50">
-              Top opportunity: event-driven demand in Minnesota. Top risk: elevated service pressure in select stores.
-              Recommended action: reinforce peak-hour labor and monitor order accuracy across high-volume locations.
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <select
-              value={stateFilter}
-              onChange={(event) => setStateFilter(event.target.value)}
-              className="rounded-full border border-white/30 bg-white/10 px-3 py-2 text-sm text-white"
-            >
-              <option className="text-slate-900">All</option>
-              {["Minnesota", "Wisconsin", "Iowa", "South Dakota", "North Dakota"].map((state) => (
-                <option key={state} className="text-slate-900">
-                  {state}
-                </option>
-              ))}
-            </select>
-            <select
-              value={brandFilter}
-              onChange={(event) => setBrandFilter(event.target.value as "All" | Brand)}
-              className="rounded-full border border-white/30 bg-white/10 px-3 py-2 text-sm text-white"
-            >
-              <option className="text-slate-900">All</option>
-              <option className="text-slate-900">Taco Bell</option>
-              <option className="text-slate-900">Pizza Hut</option>
-            </select>
+      <section className="panel bg-[radial-gradient(circle_at_top,_#7e22ce_0%,_#9333ea_45%,_#c084fc_100%)] py-4 text-white md:py-5">
+        <div>
+          <p className="text-xs uppercase tracking-[0.2em] text-cyan-100">Today's Top Insight</p>
+          <h2 className="mt-1.5 text-2xl font-bold leading-tight md:text-3xl">Sales are up across core markets with watchpoints in service execution.</h2>
+          <div className="mt-3.5 grid grid-cols-1 gap-2.5 md:grid-cols-3 md:gap-3">
+            <article className="flex min-h-[120px] flex-col rounded-lg border border-white/60 bg-white p-3.5 md:min-h-[132px] md:p-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-purple-700">Top Opportunity</p>
+              <p className="mt-1.5 text-sm leading-snug text-slate-700">{topOpportunity?.headline ?? "Event-driven demand is building in Minnesota."}</p>
+            </article>
+            <article className="flex min-h-[120px] flex-col rounded-lg border border-white/60 bg-white p-3.5 md:min-h-[132px] md:p-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-purple-700">Top Risk</p>
+              <p className="mt-1.5 text-sm leading-snug text-slate-700">{topRiskInsight?.headline ?? "Elevated service pressure in select stores."}</p>
+            </article>
+            <article className="flex min-h-[120px] flex-col rounded-lg border border-white/60 bg-white p-3.5 md:min-h-[132px] md:p-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-purple-700">Recommended Action</p>
+              <p className="mt-1.5 text-sm leading-snug text-slate-700">{recommendedAction}</p>
+            </article>
           </div>
         </div>
       </section>
@@ -116,6 +104,33 @@ export function ExecutiveDashboard() {
           </p>
         </section>
       </div>
+
+      <section className="panel">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <h2 className="text-lg font-bold text-slate-900">Filters</h2>
+          <div className="flex flex-wrap gap-2">
+            <select
+              value={stateFilter}
+              onChange={(event) => setStateFilter(event.target.value)}
+              className="rounded-full border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700"
+            >
+              <option>All</option>
+              {["Minnesota", "Wisconsin", "Iowa", "South Dakota", "North Dakota"].map((state) => (
+                <option key={state}>{state}</option>
+              ))}
+            </select>
+            <select
+              value={brandFilter}
+              onChange={(event) => setBrandFilter(event.target.value as "All" | Brand)}
+              className="rounded-full border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700"
+            >
+              <option>All</option>
+              <option>Taco Bell</option>
+              <option>Pizza Hut</option>
+            </select>
+          </div>
+        </div>
+      </section>
 
       <RegionalStateGrid states={calculations.statePerformance} selectedState={stateFilter} onSelect={setStateFilter} />
 
