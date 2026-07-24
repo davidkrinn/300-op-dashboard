@@ -1,0 +1,42 @@
+export const weatherOutlook = [
+	{
+		weekOf: "2026-07-27",
+		market: "Minnesota",
+		avgTempF: 79,
+		precipitationIn: 0.8,
+		severeRisk: "Low",
+		expectedSalesImpactPct: 1.2,
+	},
+	{
+		weekOf: "2026-07-27",
+		market: "Wisconsin",
+		avgTempF: 77,
+		precipitationIn: 1.1,
+		severeRisk: "Moderate",
+		expectedSalesImpactPct: 0.4,
+	},
+	{
+		weekOf: "2026-07-27",
+		market: "Iowa",
+		avgTempF: 82,
+		precipitationIn: 0.5,
+		severeRisk: "Low",
+		expectedSalesImpactPct: 1.6,
+	},
+	{
+		weekOf: "2026-07-27",
+		market: "South Dakota",
+		avgTempF: 75,
+		precipitationIn: 1.3,
+		severeRisk: "Moderate",
+		expectedSalesImpactPct: -0.3,
+	},
+	{
+		weekOf: "2026-07-27",
+		market: "North Dakota",
+		avgTempF: 73,
+		precipitationIn: 0.9,
+		severeRisk: "Low",
+		expectedSalesImpactPct: 0.2,
+	},
+]
