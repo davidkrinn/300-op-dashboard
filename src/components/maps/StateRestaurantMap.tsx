@@ -6,6 +6,9 @@ import { TrendingDown, TrendingUp } from "lucide-react"
 import { stores } from "@/data/mockStores"
 import type { Brand } from "@/types/brand"
 import "maplibre-gl/dist/maplibre-gl.css"
+import type { FeatureCollection, GeoJsonProperties, Geometry, Polygon } from "geojson"
+import statesAtlas from "us-atlas/states-10m.json"
+import { feature } from "topojson-client"
 
 type Bounds = {
   west: number
@@ -15,6 +18,10 @@ type Bounds = {
 }
 
 const MAP_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty"
+const STATE_SOURCE_ID = "midwest-state-outlines"
+const STATE_FILL_LAYER_ID = "midwest-state-fills"
+const STATE_LINE_LAYER_ID = "midwest-state-lines"
+const STATE_HIGHLIGHT_LAYER_ID = "midwest-state-highlight"
 
 const MIDWEST_BOUNDS: Bounds = {
   west: -104.2,
@@ -31,6 +38,63 @@ const STATE_BOUNDS: Record<string, Bounds> = {
   "North Dakota": { west: -104.1, south: 45.9, east: -96.5, north: 49.1 },
 }
 
+const TARGET_STATE_IDS = new Set([19, 27, 38, 46, 55])
+
+const STATE_NAME_BY_FIPS: Record<number, string> = {
+  19: "Iowa",
+  27: "Minnesota",
+  38: "North Dakota",
+  46: "South Dakota",
+  55: "Wisconsin",
+}
+
+type AtlasFeature = {
+  id: number | string
+  geometry: Polygon
+  properties?: Record<string, unknown>
+}
+
+type AtlasFeatureCollection = {
+  features: AtlasFeature[]
+}
+
+type AtlasTopology = {
+  objects: {
+    states: unknown
+  }
+}
+
+function buildStateOutlinesFromAtlas(): FeatureCollection<Polygon, { name: string }> {
+  const atlas = statesAtlas as unknown as AtlasTopology
+  const statesObject = atlas.objects.states
+  const rawGeo = feature(atlas as never, statesObject as never) as FeatureCollection<Geometry, GeoJsonProperties> | { geometry: Geometry }
+  const statesGeo: AtlasFeatureCollection =
+    "features" in rawGeo
+      ? ({ features: rawGeo.features as AtlasFeature[] } as AtlasFeatureCollection)
+      : ({ features: [rawGeo as AtlasFeature] } as AtlasFeatureCollection)
+
+  return {
+    type: "FeatureCollection",
+    features: statesGeo.features
+      .map((stateFeature) => {
+        const rawId = Number(stateFeature.id)
+        if (!TARGET_STATE_IDS.has(rawId)) return null
+
+        const name = STATE_NAME_BY_FIPS[rawId]
+        if (!name) return null
+
+        return {
+          type: "Feature" as const,
+          properties: { name },
+          geometry: stateFeature.geometry,
+        }
+      })
+      .filter((entry): entry is { type: "Feature"; properties: { name: string }; geometry: Polygon } => Boolean(entry)),
+  }
+}
+
+const STATE_OUTLINES = buildStateOutlinesFromAtlas()
+
 function markerColor(currentWeekSales: number, previousWeekSales: number): string {
   return currentWeekSales >= previousWeekSales ? "#16a34a" : "#dc2626"
 }
@@ -40,6 +104,17 @@ function toLngLatBounds(bounds: Bounds): LngLatBoundsLike {
     [bounds.west, bounds.south],
     [bounds.east, bounds.north],
   ]
+}
+
+function setStateHighlightFilter(map: Map, selectedState: string) {
+  if (!map.getLayer(STATE_HIGHLIGHT_LAYER_ID)) return
+
+  if (selectedState === "All") {
+    map.setFilter(STATE_HIGHLIGHT_LAYER_ID, ["==", ["get", "name"], ""])
+    return
+  }
+
+  map.setFilter(STATE_HIGHLIGHT_LAYER_ID, ["==", ["get", "name"], selectedState])
 }
 
 type Props = {
@@ -78,7 +153,48 @@ export function StateRestaurantMap({ selectedState, selectedBrand }: Props) {
     })
 
     map.addControl(new NavigationControl({ showCompass: false }), "top-right")
-    map.fitBounds(toLngLatBounds(MIDWEST_BOUNDS), { padding: 24, duration: 0 })
+    map.on("load", () => {
+      map.addSource(STATE_SOURCE_ID, {
+        type: "geojson",
+        data: STATE_OUTLINES,
+      })
+
+      map.addLayer({
+        id: STATE_FILL_LAYER_ID,
+        type: "fill",
+        source: STATE_SOURCE_ID,
+        paint: {
+          "fill-color": "#7c3aed",
+          "fill-opacity": 0.08,
+        },
+      })
+
+      map.addLayer({
+        id: STATE_LINE_LAYER_ID,
+        type: "line",
+        source: STATE_SOURCE_ID,
+        paint: {
+          "line-color": "#6d28d9",
+          "line-width": 1.6,
+          "line-opacity": 0.65,
+        },
+      })
+
+      map.addLayer({
+        id: STATE_HIGHLIGHT_LAYER_ID,
+        type: "line",
+        source: STATE_SOURCE_ID,
+        filter: ["==", ["get", "name"], ""],
+        paint: {
+          "line-color": "#4c1d95",
+          "line-width": 3,
+          "line-opacity": 0.95,
+        },
+      })
+
+      setStateHighlightFilter(map, selectedState)
+      map.fitBounds(toLngLatBounds(MIDWEST_BOUNDS), { padding: 24, duration: 0 })
+    })
 
     mapRef.current = map
 
@@ -155,6 +271,7 @@ export function StateRestaurantMap({ selectedState, selectedBrand }: Props) {
 
     const bounds = selectedState === "All" ? MIDWEST_BOUNDS : STATE_BOUNDS[selectedState] ?? MIDWEST_BOUNDS
     map.fitBounds(toLngLatBounds(bounds), { padding: 24, duration: 600 })
+    setStateHighlightFilter(map, selectedState)
   }, [selectedState])
 
   return (
