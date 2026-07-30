@@ -1,141 +1,45 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { LngLatBoundsLike, Map, Marker, NavigationControl, Popup } from "maplibre-gl"
 import { TrendingDown, TrendingUp } from "lucide-react"
 import { stores } from "@/data/mockStores"
 import type { Brand } from "@/types/brand"
+import "maplibre-gl/dist/maplibre-gl.css"
 
-type GeoPoint = {
-  lat: number
-  lng: number
+type Bounds = {
+  west: number
+  south: number
+  east: number
+  north: number
 }
 
-type ScreenPoint = {
-  x: number
-  y: number
+const MAP_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty"
+
+const MIDWEST_BOUNDS: Bounds = {
+  west: -104.2,
+  south: 40.3,
+  east: -86.4,
+  north: 49.1,
 }
 
-type StatePolygon = {
-  name: string
-  points: GeoPoint[]
+const STATE_BOUNDS: Record<string, Bounds> = {
+  Minnesota: { west: -97.3, south: 43.4, east: -89.4, north: 49.1 },
+  Wisconsin: { west: -92.9, south: 42.4, east: -86.7, north: 47.4 },
+  Iowa: { west: -96.7, south: 40.3, east: -90.1, north: 43.6 },
+  "South Dakota": { west: -104.1, south: 42.4, east: -96.4, north: 46.1 },
+  "North Dakota": { west: -104.1, south: 45.9, east: -96.5, north: 49.1 },
 }
-
-const MAP_WIDTH = 940
-const MAP_HEIGHT = 420
-
-const GEO_BOUNDS = {
-  minLat: 40.3,
-  maxLat: 49.1,
-  minLng: -104.2,
-  maxLng: -86.4,
-}
-
-const STATE_POLYGONS: StatePolygon[] = [
-  {
-    name: "North Dakota",
-    points: [
-      { lat: 49.0, lng: -104.05 },
-      { lat: 49.0, lng: -97.23 },
-      { lat: 46.0, lng: -96.6 },
-      { lat: 46.0, lng: -104.05 },
-    ],
-  },
-  {
-    name: "South Dakota",
-    points: [
-      { lat: 45.95, lng: -104.05 },
-      { lat: 45.95, lng: -96.45 },
-      { lat: 42.48, lng: -96.45 },
-      { lat: 42.48, lng: -104.05 },
-    ],
-  },
-  {
-    name: "Minnesota",
-    points: [
-      { lat: 49.0, lng: -97.2 },
-      { lat: 49.0, lng: -95.0 },
-      { lat: 48.8, lng: -92.8 },
-      { lat: 47.3, lng: -89.5 },
-      { lat: 46.2, lng: -92.2 },
-      { lat: 45.7, lng: -92.9 },
-      { lat: 43.5, lng: -91.2 },
-      { lat: 43.5, lng: -95.2 },
-      { lat: 45.0, lng: -95.2 },
-      { lat: 46.3, lng: -95.2 },
-      { lat: 48.0, lng: -96.6 },
-    ],
-  },
-  {
-    name: "Iowa",
-    points: [
-      { lat: 43.5, lng: -96.64 },
-      { lat: 43.5, lng: -90.14 },
-      { lat: 40.38, lng: -90.14 },
-      { lat: 40.38, lng: -95.8 },
-      { lat: 41.6, lng: -96.5 },
-    ],
-  },
-  {
-    name: "Wisconsin",
-    points: [
-      { lat: 47.3, lng: -92.9 },
-      { lat: 47.1, lng: -90.7 },
-      { lat: 46.6, lng: -90.0 },
-      { lat: 45.8, lng: -87.0 },
-      { lat: 44.5, lng: -86.8 },
-      { lat: 42.5, lng: -87.0 },
-      { lat: 42.5, lng: -90.7 },
-      { lat: 43.5, lng: -91.2 },
-      { lat: 45.7, lng: -92.9 },
-    ],
-  },
-]
 
 function markerColor(currentWeekSales: number, previousWeekSales: number): string {
   return currentWeekSales >= previousWeekSales ? "#16a34a" : "#dc2626"
 }
 
-function projectPoint(point: GeoPoint): ScreenPoint {
-  const x = ((point.lng - GEO_BOUNDS.minLng) / (GEO_BOUNDS.maxLng - GEO_BOUNDS.minLng)) * MAP_WIDTH
-  const y = ((GEO_BOUNDS.maxLat - point.lat) / (GEO_BOUNDS.maxLat - GEO_BOUNDS.minLat)) * MAP_HEIGHT
-  return { x, y }
-}
-
-function polygonPath(points: ScreenPoint[]): string {
-  if (points.length === 0) return ""
-  return `M ${points.map((point) => `${point.x.toFixed(1)} ${point.y.toFixed(1)}`).join(" L ")} Z`
-}
-
-function isPointInPolygon(point: ScreenPoint, polygon: ScreenPoint[]): boolean {
-  let inside = false
-
-  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-    const xi = polygon[i].x
-    const yi = polygon[i].y
-    const xj = polygon[j].x
-    const yj = polygon[j].y
-
-    const intersect = yi > point.y !== yj > point.y && point.x < ((xj - xi) * (point.y - yi)) / (yj - yi + 0.0000001) + xi
-    if (intersect) inside = !inside
-  }
-
-  return inside
-}
-
-function polygonCentroid(polygon: ScreenPoint[]): ScreenPoint {
-  const total = polygon.reduce(
-    (acc, point) => {
-      acc.x += point.x
-      acc.y += point.y
-      return acc
-    },
-    { x: 0, y: 0 },
-  )
-
-  return {
-    x: total.x / polygon.length,
-    y: total.y / polygon.length,
-  }
+function toLngLatBounds(bounds: Bounds): LngLatBoundsLike {
+  return [
+    [bounds.west, bounds.south],
+    [bounds.east, bounds.north],
+  ]
 }
 
 type Props = {
@@ -145,6 +49,10 @@ type Props = {
 
 export function StateRestaurantMap({ selectedState, selectedBrand }: Props) {
   const [activeStoreId, setActiveStoreId] = useState<string | null>(null)
+  const mapContainerRef = useRef<HTMLDivElement | null>(null)
+  const mapRef = useRef<Map | null>(null)
+  const popupRef = useRef<Popup | null>(null)
+  const markersRef = useRef<Marker[]>([])
 
   const filteredStores = useMemo(() => {
     return stores.filter((store) => {
@@ -155,43 +63,99 @@ export function StateRestaurantMap({ selectedState, selectedBrand }: Props) {
   }, [selectedState, selectedBrand])
 
   const activeStore = filteredStores.find((store) => store.id === activeStoreId)
-  const polygons = useMemo(() => {
-    return STATE_POLYGONS.map((statePolygon) => {
-      const projected = statePolygon.points.map(projectPoint)
-      return {
-        name: statePolygon.name,
-        points: projected,
-        path: polygonPath(projected),
-        centroid: polygonCentroid(projected),
-      }
+
+  useEffect(() => {
+    if (!mapContainerRef.current || mapRef.current) return
+
+    const map = new Map({
+      container: mapContainerRef.current,
+      style: MAP_STYLE_URL,
+      center: [-94.5, 45.2],
+      zoom: 5,
+      minZoom: 3.5,
+      maxZoom: 13,
+      cooperativeGestures: true,
     })
+
+    map.addControl(new NavigationControl({ showCompass: false }), "top-right")
+    map.fitBounds(toLngLatBounds(MIDWEST_BOUNDS), { padding: 24, duration: 0 })
+
+    mapRef.current = map
+
+    return () => {
+      popupRef.current?.remove()
+      popupRef.current = null
+      markersRef.current.forEach((marker) => marker.remove())
+      markersRef.current = []
+      map.remove()
+      mapRef.current = null
+    }
   }, [])
 
-  const polygonByName = useMemo(() => {
-    return new Map(polygons.map((polygon) => [polygon.name, polygon]))
-  }, [polygons])
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
 
-  const mapPoints = useMemo(() => {
-    return filteredStores.map((store) => {
-      const projected = projectPoint({ lat: store.latitude, lng: store.longitude })
-      const statePolygon = polygonByName.get(store.state)
+    markersRef.current.forEach((marker) => marker.remove())
+    markersRef.current = []
 
-      if (!statePolygon) {
-        return { store, x: projected.x, y: projected.y }
-      }
+    popupRef.current?.remove()
+    popupRef.current = null
 
-      const inside = isPointInPolygon(projected, statePolygon.points)
-      if (inside) {
-        return { store, x: projected.x, y: projected.y }
-      }
+    filteredStores.forEach((store) => {
+      const markerEl = document.createElement("button")
+      markerEl.type = "button"
+      markerEl.className = "h-4 w-4 rounded-full border-2 border-white shadow"
+      markerEl.style.backgroundColor = markerColor(store.currentWeekSales, store.previousWeekSales)
+      markerEl.setAttribute("aria-label", `View trend details for ${store.name}`)
 
-      return {
-        store,
-        x: statePolygon.centroid.x,
-        y: statePolygon.centroid.y,
-      }
+      markerEl.addEventListener("click", () => {
+        setActiveStoreId(store.id)
+      })
+
+      const marker = new Marker({ element: markerEl, anchor: "center" })
+        .setLngLat([store.longitude, store.latitude])
+        .addTo(map)
+
+      markersRef.current.push(marker)
     })
-  }, [filteredStores, polygonByName])
+  }, [filteredStores])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+
+    const store = filteredStores.find((item) => item.id === activeStoreId)
+    if (!store) {
+      popupRef.current?.remove()
+      popupRef.current = null
+      return
+    }
+
+    popupRef.current?.remove()
+    const popupHtml = `
+      <div style="font-family: 'Avenir Next', 'Avenir', 'Segoe UI', sans-serif; min-width: 200px;">
+        <div style="font-weight: 700; color: #0f172a; font-size: 13px;">${store.name}</div>
+        <div style="color: #475569; font-size: 12px; margin-top: 2px;">${store.city}, ${store.state}</div>
+        <div style="color: #334155; font-size: 12px; margin-top: 6px;">Prev $${store.previousWeekSales.toLocaleString()} · Curr $${store.currentWeekSales.toLocaleString()}</div>
+      </div>
+    `
+
+    const popup = new Popup({ closeButton: false, offset: 14 })
+      .setLngLat([store.longitude, store.latitude])
+      .setHTML(popupHtml)
+      .addTo(map)
+
+    popupRef.current = popup
+  }, [activeStoreId, filteredStores])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+
+    const bounds = selectedState === "All" ? MIDWEST_BOUNDS : STATE_BOUNDS[selectedState] ?? MIDWEST_BOUNDS
+    map.fitBounds(toLngLatBounds(bounds), { padding: 24, duration: 600 })
+  }, [selectedState])
 
   return (
     <section className="panel">
@@ -213,55 +177,11 @@ export function StateRestaurantMap({ selectedState, selectedBrand }: Props) {
       </div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.3fr_1fr]">
-        <div className="relative overflow-hidden rounded-lg border border-slate-200 bg-gradient-to-br from-slate-100 via-indigo-50 to-violet-100">
-          <svg viewBox={`0 0 ${MAP_WIDTH} ${MAP_HEIGHT}`} className="h-[420px] w-full">
-            {polygons.map((polygon) => {
-              const isFocused = selectedState === "All" || selectedState === polygon.name
-              return (
-                <g key={polygon.name}>
-                  <path
-                    d={polygon.path}
-                    fill={isFocused ? "#ddd6fe" : "#ede9fe"}
-                    stroke={isFocused ? "#7c3aed" : "#a78bfa"}
-                    strokeWidth={isFocused ? 2.4 : 1.7}
-                    opacity={isFocused ? 1 : 0.6}
-                  />
-                  <text
-                    x={polygon.centroid.x}
-                    y={polygon.centroid.y}
-                    fontSize="13"
-                    fill="#5b21b6"
-                    fontWeight="700"
-                    textAnchor="middle"
-                    opacity={isFocused ? 1 : 0.7}
-                  >
-                    {polygon.name}
-                  </text>
-                </g>
-              )
-            })}
-
-            {mapPoints.map(({ store, x, y }) => {
-              const selected = activeStoreId === store.id
-              return (
-                <g key={store.id} onClick={() => setActiveStoreId(store.id)} className="cursor-pointer">
-                  <circle cx={x} cy={y} r={selected ? 10 : 8} fill={markerColor(store.currentWeekSales, store.previousWeekSales)} stroke="#ffffff" strokeWidth="2" />
-                  {selected ? (
-                    <g>
-                      <rect x={x + 10} y={y - 40} width="205" height="60" rx="8" fill="#111827" opacity="0.93" />
-                      <text x={x + 20} y={y - 20} fontSize="11" fill="#ffffff" fontWeight="700">{store.name}</text>
-                      <text x={x + 20} y={y - 6} fontSize="10" fill="#e5e7eb">
-                        {store.city}, {store.state}
-                      </text>
-                      <text x={x + 20} y={y + 8} fontSize="10" fill="#e5e7eb">
-                        Prev ${store.previousWeekSales.toLocaleString()} · Curr ${store.currentWeekSales.toLocaleString()}
-                      </text>
-                    </g>
-                  ) : null}
-                </g>
-              )
-            })}
-          </svg>
+        <div className="relative overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+          <div ref={mapContainerRef} className="h-[420px] w-full" />
+          <div className="pointer-events-none absolute bottom-2 left-2 rounded bg-white/90 px-2 py-1 text-[10px] text-slate-600 shadow-sm">
+            Map: OpenFreeMap | Data: OpenStreetMap contributors, OpenMapTiles
+          </div>
         </div>
 
         <div className="space-y-2">
