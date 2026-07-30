@@ -2,11 +2,12 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { LngLatBoundsLike, Map, Marker, NavigationControl, Popup } from "maplibre-gl"
+import type { StyleSpecification } from "maplibre-gl"
 import { TrendingDown, TrendingUp } from "lucide-react"
 import { stores } from "@/data/mockStores"
 import type { Brand } from "@/types/brand"
 import "maplibre-gl/dist/maplibre-gl.css"
-import type { FeatureCollection, GeoJsonProperties, Geometry, Polygon } from "geojson"
+import type { FeatureCollection, GeoJsonProperties, Geometry, MultiPolygon, Polygon } from "geojson"
 import statesAtlas from "us-atlas/states-10m.json"
 import { feature } from "topojson-client"
 
@@ -17,12 +18,31 @@ type Bounds = {
   north: number
 }
 
-const MAP_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty"
-const STATE_SOURCE_ID = "midwest-state-outlines"
-const STATE_FILL_LAYER_ID = "midwest-state-fills"
-const STATE_LINE_LAYER_ID = "midwest-state-lines"
-const STATE_HIGHLIGHT_LAYER_ID = "midwest-state-highlight"
-
+const MAP_STYLE: StyleSpecification = {
+  version: 8,
+  sources: {
+    opentopomap: {
+      type: "raster",
+      tiles: [
+        "https://a.tile.opentopomap.org/{z}/{x}/{y}.png",
+        "https://b.tile.opentopomap.org/{z}/{x}/{y}.png",
+        "https://c.tile.opentopomap.org/{z}/{x}/{y}.png",
+      ],
+      tileSize: 256,
+      attribution: "Map data: OpenStreetMap contributors, SRTM | Map style: OpenTopoMap (CC-BY-SA)",
+      maxzoom: 17,
+    },
+  },
+  layers: [
+    {
+      id: "opentopomap-base",
+      type: "raster",
+      source: "opentopomap",
+      minzoom: 0,
+      maxzoom: 17,
+    },
+  ],
+}
 const MIDWEST_BOUNDS: Bounds = {
   west: -104.2,
   south: 40.3,
@@ -50,7 +70,7 @@ const STATE_NAME_BY_FIPS: Record<number, string> = {
 
 type AtlasFeature = {
   id: number | string
-  geometry: Polygon
+  geometry: Polygon | MultiPolygon
   properties?: Record<string, unknown>
 }
 
@@ -64,7 +84,7 @@ type AtlasTopology = {
   }
 }
 
-function buildStateOutlinesFromAtlas(): FeatureCollection<Polygon, { name: string }> {
+function buildStateOutlinesFromAtlas(): FeatureCollection<Polygon | MultiPolygon, { name: string }> {
   const atlas = statesAtlas as unknown as AtlasTopology
   const statesObject = atlas.objects.states
   const rawGeo = feature(atlas as never, statesObject as never) as FeatureCollection<Geometry, GeoJsonProperties> | { geometry: Geometry }
@@ -89,11 +109,35 @@ function buildStateOutlinesFromAtlas(): FeatureCollection<Polygon, { name: strin
           geometry: stateFeature.geometry,
         }
       })
-      .filter((entry): entry is { type: "Feature"; properties: { name: string }; geometry: Polygon } => Boolean(entry)),
+      .filter((entry): entry is { type: "Feature"; properties: { name: string }; geometry: Polygon | MultiPolygon } => Boolean(entry)),
   }
 }
 
 const STATE_OUTLINES = buildStateOutlinesFromAtlas()
+
+function geometryToPath(map: Map, geometry: Polygon | MultiPolygon): string {
+  const polygons = geometry.type === "Polygon" ? [geometry.coordinates] : geometry.coordinates
+  const parts: string[] = []
+
+  polygons.forEach((polygon) => {
+    polygon.forEach((ring) => {
+      if (ring.length === 0) return
+
+      const first = map.project([ring[0][0], ring[0][1]])
+      let part = `M ${first.x.toFixed(2)} ${first.y.toFixed(2)}`
+
+      for (let i = 1; i < ring.length; i += 1) {
+        const point = map.project([ring[i][0], ring[i][1]])
+        part += ` L ${point.x.toFixed(2)} ${point.y.toFixed(2)}`
+      }
+
+      part += " Z"
+      parts.push(part)
+    })
+  })
+
+  return parts.join(" ")
+}
 
 function markerColor(currentWeekSales: number, previousWeekSales: number): string {
   return currentWeekSales >= previousWeekSales ? "#16a34a" : "#dc2626"
@@ -106,24 +150,20 @@ function toLngLatBounds(bounds: Bounds): LngLatBoundsLike {
   ]
 }
 
-function setStateHighlightFilter(map: Map, selectedState: string) {
-  if (!map.getLayer(STATE_HIGHLIGHT_LAYER_ID)) return
-
-  if (selectedState === "All") {
-    map.setFilter(STATE_HIGHLIGHT_LAYER_ID, ["has", "name"])
-    return
-  }
-
-  map.setFilter(STATE_HIGHLIGHT_LAYER_ID, ["==", ["get", "name"], selectedState])
-}
-
 type Props = {
   selectedState: string
   selectedBrand: "All" | Brand
 }
 
+type OutlinePath = {
+  name: string
+  d: string
+}
+
 export function StateRestaurantMap({ selectedState, selectedBrand }: Props) {
   const [activeStoreId, setActiveStoreId] = useState<string | null>(null)
+  const [outlinePaths, setOutlinePaths] = useState<OutlinePath[]>([])
+  const [mapSize, setMapSize] = useState({ width: 1, height: 1 })
   const mapContainerRef = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<Map | null>(null)
   const popupRef = useRef<Popup | null>(null)
@@ -144,7 +184,7 @@ export function StateRestaurantMap({ selectedState, selectedBrand }: Props) {
 
     const map = new Map({
       container: mapContainerRef.current,
-      style: MAP_STYLE_URL,
+      style: MAP_STYLE,
       center: [-94.5, 45.2],
       zoom: 5,
       minZoom: 3.5,
@@ -152,53 +192,38 @@ export function StateRestaurantMap({ selectedState, selectedBrand }: Props) {
       cooperativeGestures: true,
     })
 
+    const updateOutlineOverlay = () => {
+      const container = map.getContainer()
+      const width = container.clientWidth
+      const height = container.clientHeight
+
+      if (width <= 0 || height <= 0) return
+
+      const paths = STATE_OUTLINES.features.map((stateFeature) => {
+        return {
+          name: stateFeature.properties.name,
+          d: geometryToPath(map, stateFeature.geometry),
+        }
+      })
+
+      setMapSize({ width, height })
+      setOutlinePaths(paths)
+    }
+
     map.addControl(new NavigationControl({ showCompass: false }), "top-right")
-    map.on("load", () => {
-      map.addSource(STATE_SOURCE_ID, {
-        type: "geojson",
-        data: STATE_OUTLINES,
-      })
-
-      map.addLayer({
-        id: STATE_FILL_LAYER_ID,
-        type: "fill",
-        source: STATE_SOURCE_ID,
-        paint: {
-          "fill-color": "#a78bfa",
-          "fill-opacity": 0.16,
-        },
-      })
-
-      map.addLayer({
-        id: STATE_LINE_LAYER_ID,
-        type: "line",
-        source: STATE_SOURCE_ID,
-        paint: {
-          "line-color": "#1e1b4b",
-          "line-width": 2.2,
-          "line-opacity": 0.9,
-        },
-      })
-
-      map.addLayer({
-        id: STATE_HIGHLIGHT_LAYER_ID,
-        type: "line",
-        source: STATE_SOURCE_ID,
-        filter: ["==", ["get", "name"], ""],
-        paint: {
-          "line-color": "#4c1d95",
-          "line-width": 3.6,
-          "line-opacity": 1,
-        },
-      })
-
-      setStateHighlightFilter(map, selectedState)
-      map.fitBounds(toLngLatBounds(MIDWEST_BOUNDS), { padding: 24, duration: 0 })
-    })
+    map.on("load", updateOutlineOverlay)
+    map.on("moveend", updateOutlineOverlay)
+    map.on("zoomend", updateOutlineOverlay)
+    map.on("resize", updateOutlineOverlay)
+    map.fitBounds(toLngLatBounds(MIDWEST_BOUNDS), { padding: 24, duration: 0 })
 
     mapRef.current = map
 
     return () => {
+      map.off("load", updateOutlineOverlay)
+      map.off("moveend", updateOutlineOverlay)
+      map.off("zoomend", updateOutlineOverlay)
+      map.off("resize", updateOutlineOverlay)
       popupRef.current?.remove()
       popupRef.current = null
       markersRef.current.forEach((marker) => marker.remove())
@@ -271,7 +296,6 @@ export function StateRestaurantMap({ selectedState, selectedBrand }: Props) {
 
     const bounds = selectedState === "All" ? MIDWEST_BOUNDS : STATE_BOUNDS[selectedState] ?? MIDWEST_BOUNDS
     map.fitBounds(toLngLatBounds(bounds), { padding: 24, duration: 600 })
-    setStateHighlightFilter(map, selectedState)
   }, [selectedState])
 
   return (
@@ -296,8 +320,28 @@ export function StateRestaurantMap({ selectedState, selectedBrand }: Props) {
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.3fr_1fr]">
         <div className="relative overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
           <div ref={mapContainerRef} className="h-[420px] w-full" />
+          <svg
+            className="pointer-events-none absolute inset-0 h-full w-full"
+            viewBox={`0 0 ${mapSize.width} ${mapSize.height}`}
+            preserveAspectRatio="none"
+            aria-hidden="true"
+          >
+            {outlinePaths.map((path) => {
+              const focused = selectedState === "All" || selectedState === path.name
+              return (
+                <path
+                  key={path.name}
+                  d={path.d}
+                  fill="none"
+                  stroke={focused ? "#111827" : "#ef4444"}
+                  strokeWidth={focused ? 3.6 : 2.4}
+                  vectorEffect="non-scaling-stroke"
+                />
+              )
+            })}
+          </svg>
           <div className="pointer-events-none absolute bottom-2 left-2 rounded bg-white/90 px-2 py-1 text-[10px] text-slate-600 shadow-sm">
-            Map: OpenFreeMap | Data: OpenStreetMap contributors, OpenMapTiles
+            Map: OpenTopoMap | Data: OpenStreetMap contributors, SRTM
           </div>
         </div>
 
