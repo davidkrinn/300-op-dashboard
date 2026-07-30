@@ -110,7 +110,7 @@ function setStateHighlightFilter(map: Map, selectedState: string) {
   if (!map.getLayer(STATE_HIGHLIGHT_LAYER_ID)) return
 
   if (selectedState === "All") {
-    map.setFilter(STATE_HIGHLIGHT_LAYER_ID, ["==", ["get", "name"], ""])
+    map.setFilter(STATE_HIGHLIGHT_LAYER_ID, ["has", "name"])
     return
   }
 
@@ -164,8 +164,8 @@ export function StateRestaurantMap({ selectedState, selectedBrand }: Props) {
         type: "fill",
         source: STATE_SOURCE_ID,
         paint: {
-          "fill-color": "#7c3aed",
-          "fill-opacity": 0.08,
+          "fill-color": "#a78bfa",
+          "fill-opacity": 0.16,
         },
       })
 
@@ -174,9 +174,9 @@ export function StateRestaurantMap({ selectedState, selectedBrand }: Props) {
         type: "line",
         source: STATE_SOURCE_ID,
         paint: {
-          "line-color": "#6d28d9",
-          "line-width": 1.6,
-          "line-opacity": 0.65,
+          "line-color": "#1e1b4b",
+          "line-width": 2.2,
+          "line-opacity": 0.9,
         },
       })
 
@@ -187,8 +187,8 @@ export function StateRestaurantMap({ selectedState, selectedBrand }: Props) {
         filter: ["==", ["get", "name"], ""],
         paint: {
           "line-color": "#4c1d95",
-          "line-width": 3,
-          "line-opacity": 0.95,
+          "line-width": 3.6,
+          "line-opacity": 1,
         },
       })
 
