@@ -12,8 +12,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body className="font-body">
         <div className="flex flex-col min-h-screen">
-          <main className="flex-1 px-6 py-6">
-            {children}
+          <main className="flex-1 flex justify-center">
+            <div className="w-full max-w-6xl px-12 py-12">
+              {children}
+            </div>
           </main>
           <Footer />
         </div>
