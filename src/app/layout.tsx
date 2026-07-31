@@ -12,7 +12,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body className="font-body">
         <div className="flex flex-col min-h-screen">
-          <main className="flex-1">{children}</main>
+          <main className="flex-1 px-6 py-6">
+            {children}
+          </main>
           <Footer />
         </div>
       </body>

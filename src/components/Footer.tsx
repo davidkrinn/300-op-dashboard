@@ -7,4 +7,13 @@ export default function Footer() {
       Taco Hut Enterprises &copy; 2026
     </footer>
   );
-}
+}// ...existing code...
+      <body className="font-body">
+        <div className="flex flex-col min-h-screen">
+          <main className="flex-1 px-6 py-6">
+            {children}
+          </main>
+          <Footer />
+        </div>
+      </body>
+// ...existing code...
