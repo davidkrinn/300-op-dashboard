@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import "@/app/globals.css"
+import Footer from "@/components/Footer"
 
 export const metadata: Metadata = {
   title: "Restaurant Franchise Executive Dashboard",
@@ -10,7 +11,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body className="font-body">
-        <main className="mx-auto w-full max-w-[1300px] px-4 py-8 sm:px-6 lg:px-8">{children}</main>
+        <div className="flex flex-col min-h-screen">
+          <main className="flex-1">{children}</main>
+          <Footer />
+        </div>
       </body>
     </html>
   )
