@@ -8,7 +8,7 @@ const links = [
 
 export function TopNav() {
   return (
-    <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
+    <div className="flex flex-wrap items-center justify-between gap-3">
       <div>
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-700">Taco Hut Enterprises</p>
         <h1 className="text-3xl font-bold text-slate-900">Executive Command Dashboard</h1>
@@ -24,6 +24,6 @@ export function TopNav() {
           </Link>
         ))}
       </nav>
-    </header>
+    </div>
   )
 }
