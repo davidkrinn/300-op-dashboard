@@ -1,20 +1,10 @@
-import Footer from "@/components/Footer";
-
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function Footer() {
   return (
-    <html lang="en">
-      <body>
-        <div className="flex flex-col min-h-screen">
-          <main className="flex-1">
-            {children}
-          </main>
-          <Footer />
-        </div>
-      </body>
-    </html>
+    <footer
+      style={{ height: "50px" }}
+      className="w-full flex items-center justify-center bg-gradient-to-r from-purple-900 via-purple-700 to-purple-900 text-white text-sm font-medium tracking-wide"
+    >
+      Taco Hut Enterprises &copy; 2026
+    </footer>
   );
 }
